@@ -1,0 +1,18 @@
+{
+	"authors": [
+		"gedaiu"
+	],
+	"copyright": "Copyright © 2019, gedaiu",
+	"description": "A template library compatible with handlebars.js",
+	"license": "MIT",
+	"name": "handlebars",
+
+	"configurations": [
+		{
+			"name": "trial",
+			"dependencies": {
+				"fluent-asserts": "~>0.12.4"
+			}
+		}
+	]
+}
