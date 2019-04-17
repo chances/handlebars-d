@@ -1,6 +1,6 @@
-module tpl.lifecycle;
+module handlebars.lifecycle;
 
-import tpl.tokens;
+import handlebars.tokens;
 
 alias OnYield = string delegate(Token[]);
 alias OnEvaluateBoolean = bool delegate(string);

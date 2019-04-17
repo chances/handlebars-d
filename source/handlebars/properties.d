@@ -1,4 +1,4 @@
-module tpl.properties;
+module handlebars.properties;
 
 import std.string;
 import std.traits;
@@ -51,7 +51,11 @@ struct Properties {
     }
 
     T get(T)() if (isBuiltinType!T && !is(T == string)) {
-      return this.value.to!T;
+      static if(__traits(compiles, this.value.to!T)) {
+        return this.value.to!T;
+      } else {
+        throw new Exception("Can't get `"~value~"` as `"~T.stringof~"`");
+      }
     }
   }
 

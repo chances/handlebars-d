@@ -10,6 +10,9 @@
 	"configurations": [
 		{
 			"name": "trial",
+			"stringImportPaths": [
+				"test"
+			],
 			"dependencies": {
 				"fluent-asserts": "~>0.12.4"
 			}

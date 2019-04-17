@@ -1,4 +1,4 @@
-module tpl.tokens;
+module handlebars.tokens;
 
 import std.array;
 import std.string;
@@ -6,7 +6,7 @@ import std.traits;
 import std.conv;
 import std.algorithm;
 
-import tpl.properties;
+import handlebars.properties;
 
 version(unittest) {
   import fluent.asserts;
@@ -295,11 +295,17 @@ unittest {
 
 ///
 T evaluate(T,U)(U value, string fieldName) {
-  static immutable ignoredMembers = [ __traits(allMembers, Object) ];
+  static immutable ignoredMembers = [ __traits(allMembers, Object), "render", "this" ];
   auto pieces = fieldName.splitMemberAccess;
 
-  static foreach (memberName; __traits(allMembers, U)) {
-    static if(memberName != "this" && !ignoredMembers.canFind(memberName)) {{
+  static foreach (memberName; __traits(allMembers, U)) {{
+    static if(__traits(hasMember, U, memberName)) {
+      enum protection = __traits(getProtection, __traits(getMember, U, memberName));
+    } else {
+      enum protection = "";
+    }
+
+    static if(protection == "public" && !ignoredMembers.canFind(memberName)) {
       mixin(`alias field = U.` ~ memberName ~ `;`);
 
       static if (isCallable!(field)) {
@@ -309,14 +315,28 @@ T evaluate(T,U)(U value, string fieldName) {
       }
 
       static if(isArray!FieldType && !isSomeString!FieldType) {
-        if(pieces.length == 2 && pieces[0] == memberName && pieces[1] == "length") {
-          mixin(`return value.` ~ memberName ~ `.length.to!T;`);
+        static if(isBasicType!T || isSomeString!T) {
+          if(pieces.length == 2 && pieces[0] == memberName && pieces[1] == "length") {
+            mixin(`return value.` ~ memberName ~ `.length.to!(T);`);
+          }
         }
 
         if(pieces.length == 2 && pieces[0] == memberName && pieces[1][0] == '[') {
           auto k = pieces[1][1..$-1].to!size_t;
 
-          mixin(`return value.` ~ memberName ~ `[k].to!T;`);
+          static if(__traits(compiles, FieldType.init[0].to!(T))) {
+            mixin(`return value.` ~ memberName ~ `[k].to!(T);`);
+          }
+        }
+
+        if(pieces.length == 1 && pieces[0] == memberName) {
+          static if(is(T == FieldType)) {
+            mixin(`return value.` ~ memberName ~ `;`);
+          } else static if(__traits(compiles, FieldType.init.to!(T))) {
+            mixin(`return value.` ~ memberName ~ `.to!(T);`);
+          } else {
+            throw new Exception("Can't assign `"~fieldName~"` because can't transform " ~ T.stringof ~ " from " ~ FieldType.stringof);
+          }
         }
       } else static if((isCallable!(field) && arity!field == 0) || !isCallable!(field)) {
         if(pieces.length == 1 && pieces[0] == memberName) {
@@ -333,13 +353,15 @@ T evaluate(T,U)(U value, string fieldName) {
             } else {
               return true;
             }
-          } else {
+          } else static if(__traits(compiles, tmp.to!string.to!T)) {
             return tmp.to!string.to!T;
+          } else {
+            throw new Exception("Can't evaluate `"~fieldName~"` as `"~T.stringof~"`");
           }
         }
       }
-    }}
-  }
+    }
+  }}
 
   return T.init;
 }

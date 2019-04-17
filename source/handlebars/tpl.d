@@ -1,4 +1,4 @@
-module tpl.tpl;
+module handlebars.tpl;
 
 import std.array;
 import std.string;
@@ -6,11 +6,12 @@ import std.traits;
 import std.algorithm;
 import std.conv;
 import std.exception;
+import std.meta;
 
-import tpl.tokens;
-import tpl.lifecycle;
-import tpl.helper;
-import tpl.component;
+import handlebars.tokens;
+import handlebars.lifecycle;
+import handlebars.helper;
+import handlebars.components.all;
 
 version(unittest) {
   import fluent.asserts;
@@ -27,7 +28,7 @@ class RenderException : Exception {
 class RenderContext(T, Components...) : Lifecycle {
   private {
     T controller;
-    ComponentGroup!(Components) components;
+    ComponentGroup!(NoDuplicates!Components) components;
   }
 
   ///
@@ -68,13 +69,46 @@ class RenderContext(T, Components...) : Lifecycle {
   }
 
   ///
-  private string getField(U)(U value, string fieldName) {
+  string render(Token[] tokens)() {
+    enum token = tokens[0];
 
-    static immutable ignoredMembers = [ __traits(allMembers, Object) ];
+    static if(components.exists(token.value) && token.type != Token.Type.openBlock) {
+      return components.get(controller, token, Token.empty, this);
+    }
+    else static if(token.type == Token.Type.plain) {
+      return token.value;
+    }
+    else static if(token.type == Token.Type.value) {
+      return getField!(T, token.value)(controller);
+    }
+    else static if(token.type == Token.Type.helper) {
+      return getHelper!T(controller, token);
+    }
+    else static if(token.type == Token.Type.openBlock) {
+      enforce(components.exists(token.value), "There is no component defined as `" ~ token.value ~ "`.");
+
+      return components.get(controller,
+        token,
+        tokens[1..$-1],
+        this);
+    } else {
+      return "";
+    }
+  }
+
+  ///
+  private string getField(U)(U value, string fieldName) {
+    static immutable ignoredMembers = [ __traits(allMembers, Object), "render" ];
     auto pieces = fieldName.splitMemberAccess;
 
-    static foreach (memberName; __traits(allMembers, U)) {
-      static if(memberName != "this" && !ignoredMembers.canFind(memberName)) {
+    static foreach (memberName; __traits(allMembers, U)) {{
+      static if(__traits(hasMember, U, memberName)) {
+        enum protection = __traits(getProtection, __traits(getMember, U, memberName));
+      } else {
+        enum protection = "";
+      }
+
+      static if(protection == "public" && memberName != "this" && !ignoredMembers.canFind(memberName)) {
         if(pieces[0] == memberName) {
           mixin(`alias field = U.` ~ memberName ~ `;`);
 
@@ -99,9 +133,14 @@ class RenderContext(T, Components...) : Lifecycle {
           }
         }
       }
-    }
+    }}
 
     return "";
+  }
+
+  ///
+  private string getField(U, string fieldName)(U value) {
+    mixin(`return value.` ~ fieldName ~ `.to!string;`);
   }
 
   ///
@@ -120,12 +159,26 @@ class RenderContext(T, Components...) : Lifecycle {
   }
 }
 
-///
+/// Render a template at runtime
 string render(T, Components...)(string tplValue, T controller) {
   auto tokens = TokenRange(tplValue);
-  auto context = new RenderContext!(T, IfComponent, EachComponent, ScopeComponent, Components)(controller);
+  auto context = new RenderContext!(T, IfComponent, EachComponent, ScopeComponent, NoDuplicates!Components)(controller);
 
   return tokens.tokenLevelRange.map!(a => context.render(a)).joiner.array.to!string;
+}
+
+/// Render a template at ctfe
+string render(string tplValue, T, Components...)(T controller) {
+  enum tokens = TokenRange(tplValue).tokenLevelRange.array;
+  scope context = new RenderContext!(T, IfComponent, EachComponent, ScopeComponent, NoDuplicates!Components)(controller);
+
+  string result;
+
+  static foreach(group; tokens) {
+    result ~= context.render!(group);
+  }
+
+  return result;
 }
 
 /// Rendering an empty string
@@ -321,7 +374,7 @@ unittest {
     }
   }
 
-  render(tpl, Controller()).should.equal("value");
+  render!(tpl)(Controller()).should.equal("value");
 }
 
 /// Rendering a helper with int param
@@ -334,7 +387,24 @@ unittest {
     }
   }
 
-  render(tpl, Controller()).should.equal("5");
+  render!(tpl)(Controller()).should.equal("5");
+}
+
+/// Rendering a nested helper with int param
+unittest {
+  enum tpl = `{{child.helper 5}}`;
+
+  struct Child {
+    int helper(int value) {
+      return value;
+    }
+  }
+
+  struct Controller {
+    Child child;
+  }
+
+  render!(tpl)(Controller()).should.equal("5");
 }
 
 /// Rendering a helper with property value
@@ -349,7 +419,7 @@ unittest {
     int value = 12;
   }
 
-  render(tpl, Controller()).should.equal("12");
+  render!(tpl)(Controller()).should.equal("12");
 }
 
 /// Rendering a helper with computed value
@@ -366,7 +436,7 @@ unittest {
     }
   }
 
-  render(tpl, Controller()).should.equal("8");
+  render!(tpl)(Controller()).should.equal("8");
 }
 
 /// Rendering a nested helper with bool param
@@ -384,9 +454,8 @@ unittest {
     string value;
   }
 
-  render(tpl, Controller()).should.equal("5 true test");
+  render!(tpl)(Controller()).should.equal("5 true test");
 }
-
 
 /// Rendering undefined helpers should throw an exception
 unittest {
@@ -433,11 +502,11 @@ unittest {
 }
 
 version(unittest) {
-  class Component : HbsComponent {
+  class Component : HbsComponent!"" {
     int a;
     int b;
 
-    override string render() {
+    string render(Component, Components...)() {
       auto sum = a + b;
       return this.yield ~ sum.to!string;
     }
@@ -480,7 +549,7 @@ unittest {
     }
   }
 
-  render!(Controller, Component)(tpl, Controller()).should.equal("text");
+  render(tpl, Controller()).should.equal("text");
 }
 
 /// Don't render if blocks if the condition is not satisfied
@@ -493,7 +562,7 @@ unittest {
     }
   }
 
-  render!(Controller, Component)(tpl, Controller()).should.equal("");
+  render!(Controller)(tpl, Controller()).should.equal("");
 }
 
 /// Rendering if block and stop at the else block if the value is evaluated to true
@@ -503,7 +572,7 @@ unittest {
   }
 
   enum tpl = `{{#if true}}text{{else value}}other{{/if}}`;
-  render!(Controller, Component)(tpl, Controller()).should.equal("text");
+  render(tpl, Controller()).should.equal("text");
 }
 
 /// Rendering an each block
@@ -515,7 +584,7 @@ unittest {
   }
 
   enum tpl = `{{#each list as |item|}} {{item}} {{/each}}`;
-  render!(Controller, Component)(tpl, Controller()).should.equal(" 1  2  3  4 ");
+  render(tpl, Controller()).should.equal(" 1  2  3  4 ");
 }
 
 /// Rendering an indexed each block
@@ -527,7 +596,19 @@ unittest {
   }
 
   enum tpl = `{{#each list as |item index|}} {{index}}{{item}} {{/each}}`;
-  render!(Controller, Component)(tpl, Controller()).should.equal(" 01  12  23  34 ");
+  render!(Controller)(tpl, Controller()).should.equal(" 01  12  23  34 ");
+}
+
+/// Rendering an indexed each block with ctfe parsing
+unittest {
+  struct Controller {
+    int[] list() {
+      return [1,2,3,4];
+    }
+  }
+
+  enum tpl = `{{#each list as |item index|}} {{index}}{{item}} {{/each}}`;
+  render!(tpl)(Controller()).should.equal(" 01  12  23  34 ");
 }
 
 /// Rendering scope component with helper
@@ -541,5 +622,56 @@ unittest {
   }
 
   enum tpl = `{{#scope "list" "item" "1" "index" }} {{helper index item}} {{/scope}}`;
-  render!(Controller, Component)(tpl, Controller()).should.equal(" 1:2 ");
+  render(tpl, Controller()).should.equal(" 1:2 ");
+}
+
+version(unittest) {
+  enum tplComponent = import("test-component.hbs");
+  class TestComponent : HbsComponent!(tplComponent) {
+    ///
+    enum ComponentName = "test-component";
+
+    int a;
+    int b;
+  }
+}
+
+/// Rendering component with external template
+unittest {
+  struct Controller {
+    int a = 1;
+    int b = 2;
+  }
+
+  enum tpl = `{{test-component a=a b=b}}`;
+  render!(tpl, Controller, TestComponent)(Controller()).should.equal("1:2\n");
+}
+
+
+version(unittest) {
+  enum tplEachComponent = import("test-each-component.hbs");
+  class TestEachComponent : HbsComponent!(tplEachComponent) {
+    ///
+    enum ComponentName = "test-each-component";
+
+    int[] list = [1,2,3,4,5];
+  }
+
+  enum tplSeparatorComponent = import("separator-component.hbs");
+  class SeparatorComponent : HbsComponent!(tplSeparatorComponent) {
+    ///
+    enum ComponentName = "separator-component";
+
+    int value;
+  }
+}
+
+/// Rendering component with external template
+unittest {
+  struct Controller {
+    int[] list = [10,20,30,40,50];
+  }
+
+  enum tpl = `{{test-each-component list=list}}`;
+  render!(tpl, Controller, TestEachComponent, SeparatorComponent)(Controller()).should.equal("10,\n20,\n30,\n40,\n50,\n\n");
 }

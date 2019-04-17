@@ -16,3 +16,4 @@ handlebars-test-*
 trial-root
 trial_root.d
 .trial/
+libhandlebars.a

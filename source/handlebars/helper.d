@@ -1,12 +1,12 @@
-module tpl.helper;
+module handlebars.helper;
 
-import tpl.tokens;
 import std.conv;
 import std.string;
 import std.algorithm;
 import std.traits;
 
-import tpl.properties;
+import handlebars.tokens;
+import handlebars.properties;
 
 ///
 class RenderHelperException : Exception {
@@ -22,12 +22,18 @@ string getHelper(U)(U value, Token token) if (is(U == struct) || is(U == class))
 
 ///
 string getHelper(T, U)(T controller, U value, Token token, size_t pathStart = 0) if (is(U == struct) || is(U == class)) {
-  static immutable ignoredMembers = [ __traits(allMembers, Object) ];
+  static immutable ignoredMembers = [ __traits(allMembers, Object), "content", "lifecycle", "render"];
   auto pieces = token.value.split('.')[pathStart..$];
 
-  static foreach (memberName; __traits(allMembers, U)) {
-    static if(memberName != "this" && !ignoredMembers.canFind(memberName)) {
-      if(pieces[0] == memberName) {{
+  static foreach (memberName; __traits(allMembers, U)) {{
+    static if(__traits(hasMember, U, memberName)) {
+      enum protection = __traits(getProtection, __traits(getMember, U, memberName));
+    } else {
+      enum protection = "";
+    }
+
+    static if(protection == "public" && memberName != "this" && !ignoredMembers.canFind(memberName)) {
+      if(pieces[0] == memberName) {
         mixin(`alias field = U.` ~ memberName ~ `;`);
 
         static if(isCallable!(field) && arity!field > 0) {
@@ -36,9 +42,9 @@ string getHelper(T, U)(T controller, U value, Token token, size_t pathStart = 0)
         } else {
           mixin("return getHelper(controller, value." ~ memberName ~ `, token, pathStart + 1);`);
         }
-      }}
+      }
     }
-  }
+  }}
 
   throw new RenderHelperException("`" ~ token.value ~ "` can not be rendered becaues it is not defined.");
 }
