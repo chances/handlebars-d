@@ -87,3 +87,19 @@ static string genHelperParams(string prefix, List...)() {
 
   return result;
 }
+
+///
+string helperParams(List...)(Properties.Property[] list) {
+  string result;
+  string glue;
+
+  size_t index;
+
+  static foreach (Type; List) {{
+    result ~= glue ~ list[index].toParam ~ ".to!(" ~ Type.stringof ~ ")";
+    glue = ", ";
+    index++;
+  }}
+
+  return result;
+}

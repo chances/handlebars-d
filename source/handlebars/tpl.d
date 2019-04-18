@@ -82,7 +82,7 @@ class RenderContext(T, Components...) : Lifecycle {
       return getField!(T, token.value)(controller);
     }
     else static if(token.type == Token.Type.helper) {
-      return getHelper!T(controller, token);
+      return getHelper_!(T, token)(controller);
     }
     else static if(token.type == Token.Type.openBlock) {
       enforce(components.exists(token.value), "There is no component defined as `" ~ token.value ~ "`.");
@@ -141,6 +141,22 @@ class RenderContext(T, Components...) : Lifecycle {
   ///
   private string getField(U, string fieldName)(U value) {
     mixin(`return value.` ~ fieldName ~ `.to!string;`);
+  }
+
+  ///
+  private string getHelper_(U, Token token)(U value) {
+    enum pieces = "controller" ~ token.value.split(".");
+    enum path = pieces[0..$-1].join(".");
+    enum memberName = pieces[pieces.length - 1];
+
+    mixin(`enum protection = __traits(getProtection, __traits(getMember, typeof(`~path~`), memberName));`);
+
+    static assert(protection == "public", "The member used in hbs template `" ~ path ~ "." ~ memberName ~ "` must be public.");
+
+    mixin(`alias Params = Parameters!(` ~ path ~ `.` ~ memberName ~ `);`);
+    mixin(`string result = ` ~ path ~ `.` ~ memberName ~ `(` ~ helperParams!(Params)(token.properties.list) ~ `).to!string;`);
+
+    return result;
   }
 
   ///
