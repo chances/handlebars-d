@@ -57,6 +57,19 @@ struct Properties {
         throw new Exception("Can't get `"~value~"` as `"~T.stringof~"`");
       }
     }
+
+    ///
+    string toParam() {
+      if(isEvaluated) {
+        if(value == "true" || value == "false") {
+          return value;
+        }
+
+        return `"` ~ value ~ `"`;
+      }
+
+      return "controller." ~ value;
+    }
   }
 
   ///
