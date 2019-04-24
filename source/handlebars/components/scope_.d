@@ -2,6 +2,8 @@ module handlebars.components.scope_;
 
 import handlebars.components.base;
 
+import std.string;
+
 /// Component that will handle the if blocks
 class ScopeComponent : HbsComponent!"" {
 
@@ -32,6 +34,11 @@ class ScopeComponent : HbsComponent!"" {
 
       if(token.value == localName) {
         token.value = propertyName ~ "[" ~ index ~ "]";
+      }
+
+      if(token.value.indexOf(localName ~ ".") == 0) {
+        auto pieces = token.value.split(".");
+        token.value = propertyName ~ "[" ~ index ~ "]." ~ pieces[1..$].join(".");
       }
 
       if(token.value == indexName) {

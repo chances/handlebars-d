@@ -124,7 +124,15 @@ class RenderContext(T, Components...) : Lifecycle {
 
             static if (!isSomeString!FieldType && isArray!FieldType) {
               auto index = pieces[1][1..$-1].to!size_t;
-              mixin(`return value.` ~ memberName ~ `[index].to!string;`);
+
+              if(pieces.length > 2) {
+                static if(isAggregateType!(ForeachType!(FieldType))) {
+                  mixin(`return getField(value.` ~ memberName ~ `[index], pieces[2..$].join("."));`);
+                }
+              } else {
+                mixin(`return value.` ~ memberName ~ `[index].to!string;`);
+              }
+
             } else static if (is(FieldType == struct) || is(FieldType == class)) {
               mixin(`return getField(value.` ~ memberName ~ `, pieces[1..$].join("."));`);
             } else {
@@ -601,6 +609,20 @@ unittest {
 
   enum tpl = `{{#each list as |item|}} {{item}} {{/each}}`;
   render(tpl, Controller()).should.equal(" 1  2  3  4 ");
+}
+
+/// Rendering an each block with a list of structs
+unittest {
+  struct Child {
+    string name;
+  }
+
+  struct Controller {
+    Child[] list;
+  }
+
+  enum tpl = `{{#each list as |item|}} {{item.name}} {{/each}}`;
+  render(tpl, Controller([Child("name1"), Child("name2")])).should.equal(" name1  name2 ");
 }
 
 /// Rendering an indexed each block
