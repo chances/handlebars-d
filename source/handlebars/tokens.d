@@ -366,7 +366,6 @@ T evaluate(T,U)(U value, string fieldName) {
   return T.init;
 }
 
-
 string[] splitMemberAccess(string memberName) {
   string[] result;
 

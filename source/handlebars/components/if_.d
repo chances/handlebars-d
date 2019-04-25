@@ -1,12 +1,77 @@
 module handlebars.components.if_;
 
 import handlebars.components.base;
+import handlebars.tpl;
 
 import std.exception;
+import std.conv;
 
 version(unittest) {
   import fluent.asserts;
   import std.stdio;
+}
+
+/// Component that will handle the if blocks at ctfe
+class IfComponentCt(Token[] tokens, Properties properties) : HbsComponent!"" {
+  enum ComponentName = "if";
+
+  private {
+    bool value;
+  }
+
+  this(bool value) {
+    this.value = value;
+  }
+
+  ///
+  string render(T, Components...)(T controller) {
+    string result;
+
+    mixin(genIf());
+
+    return result;
+  }
+
+  private static string genIf() {
+    string code = `if(` ~ properties.list[0].toParam() ~ `) {`;
+
+    size_t start_index;
+    size_t end_index;
+    size_t nested;
+
+    foreach(token; tokens) {
+      if(token.value == "if" && token.type != Token.Type.openBlock) {
+        nested++;
+      }
+
+      if(token.value == "if" && token.type != Token.Type.closeBlock) {
+        nested--;
+      }
+
+      if(nested > 0) {
+        end_index++;
+        continue;
+      }
+
+      if(token.value == "else" && token.type != Token.Type.plain) {
+        code ~= `result = handlebars.tpl.render!(tokens[`~start_index.to!string~`..`~end_index.to!string~`], T, Components)(controller); }`;
+
+        if(token.properties.list.length == 0) {
+          code ~= ` else { `;
+        } else {
+          code ~= ` else if(` ~ token.properties.list[0].toParam() ~ `) { `;
+        }
+
+        start_index = end_index+1;
+      }
+
+      end_index++;
+    }
+
+    code ~= `result = handlebars.tpl.render!(tokens[`~start_index.to!string~`..`~end_index.to!string~`], T, Components)(controller);`;
+
+    return code ~ ` }`;
+  }
 }
 
 /// Component that will handle the if blocks
