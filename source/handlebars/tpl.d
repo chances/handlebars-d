@@ -657,6 +657,19 @@ unittest {
   render(tpl, Controller()).should.equal("text");
 }
 
+/// Rendering if block at ctfe
+unittest {
+  enum tpl = `{{#if value}}text{{/if}}`;
+
+  struct Controller {
+    int value() {
+      return 2;
+    }
+  }
+
+  render!(tpl)(Controller()).should.equal("text");
+}
+
 /// Don't render if blocks if the condition is not satisfied
 unittest {
   enum tpl = `{{#if false}}text{{/if}}`;
@@ -678,6 +691,46 @@ unittest {
 
   enum tpl = `{{#if true}}text{{else value}}other{{/if}}`;
   render(tpl, Controller()).should.equal("text");
+}
+
+/// Rendering at ctfe an if block and stop at the else block if the value is evaluated to true
+unittest {
+  struct Controller {
+    bool value = true;
+  }
+
+  enum tpl = `{{#if true}}text{{else value}}other{{/if}}`;
+  render!(tpl)(Controller()).should.equal("text");
+}
+
+/// Rendering at ctfe the right else
+unittest {
+  struct Controller {
+    bool value = true;
+  }
+
+  enum tpl = `{{#if false}}text{{else false}}other{{else value}}this one{{else}}default{{/if}}`;
+  render!(tpl)(Controller()).should.equal("this one");
+}
+
+/// Rendering at ctfe an if block should render the final else
+unittest {
+  struct Controller {
+    bool value = true;
+  }
+
+  enum tpl = `{{#if false}}text{{else false}}other{{else}}{{value}}{{/if}}`;
+  render!(tpl)(Controller()).should.equal("true");
+}
+
+/// Rendering at ctfe nested if blocks
+unittest {
+  struct Controller {
+    bool value = true;
+  }
+
+  enum tpl = `{{#if false}}text{{else}} <-- {{#if value}}true{{else}}false{{/if}} --> {{/if}}`;
+  render!(tpl)(Controller()).should.equal(" <-- true --> ");
 }
 
 /// Rendering an each block
