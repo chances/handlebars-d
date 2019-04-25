@@ -95,7 +95,7 @@ class RenderContext(T, Components...) : Lifecycle {
 
   ///
   private string getField(U)(U value, string fieldName) {
-    static immutable ignoredMembers = [ __traits(allMembers, Object), "render" ];
+    static immutable ignoredMembers = [ __traits(allMembers, Object), "render", "content" ];
     auto pieces = fieldName.splitMemberAccess;
 
     static foreach (memberName; __traits(allMembers, U)) {{
@@ -789,6 +789,19 @@ unittest {
 
   enum tpl = `{{#each list as |item index|}} {{index}}{{item}} {{/each}}`;
   render!(tpl)(Controller()).should.equal(" 01  12  23  34 ");
+}
+
+
+/// Rendering an indexed each block with ctfe parsing
+unittest {
+  struct Controller {
+    int[string] list() {
+      return ["a": 1, "b": 2, "c": 3,"d": 4];
+    }
+  }
+
+  enum tpl = `{{#each list as |item index|}} {{index}}{{item}} {{/each}}`;
+  render!(tpl)(Controller()).should.equal(" c3  a1  b2  d4 ");
 }
 
 /// Rendering an nested indexed each block with ctfe parsing
