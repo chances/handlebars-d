@@ -62,6 +62,25 @@ struct ComponentGroup(Components...) {
     }
 
     ///
+    string get(Token[] tokens, T)(T controller, Lifecycle lifecycle) {
+      enum token = tokens[0];
+
+      static if(tokens.length >= 1) {
+        enum content = tokens[1..$-1];
+      } else {
+        enum content = Token.empty;
+      }
+
+      auto instance = getInstance!(token, content)(controller);
+      instance.lifecycle = lifecycle;
+
+      enforce!RenderComponentException(instance !is null,
+        "Can't initilize component `" ~ token.value ~ "`.");
+
+      return instance.render!(T, Components)(controller);
+    }
+
+    ///
     IHbsComponent getInstance(T)(T controller, Token token) {
       static foreach(Component; Components) {{
         static if (__traits(hasMember, Component, "ComponentName")) {
@@ -106,6 +125,39 @@ struct ComponentGroup(Components...) {
       }}
 
       throw new RenderComponentException("The `"~token.value~"` component can't be rendered with the provided fields.");
+    }
+
+    ///
+    auto getInstance(Token token, Token[] content, T)(T controller) {
+      static foreach(Component; Components) {
+        static if (__traits(hasMember, Component, "ComponentName") && token.value == Component.ComponentName) {
+          alias SelectedComponent = Component;
+        } else static if(token.value == Component.stringof) {
+          alias SelectedComponent = Component;
+        }
+      }
+
+      return getInstance!(SelectedComponent, token.properties, content)(controller);
+    }
+
+    ///
+    auto getInstance(ClassName, Properties properties, Token[] content, T)(T controller) {
+      static if(content.length > 0) {
+        enum init = "new " ~ ClassName.stringof ~ "Ct!(content, properties)";
+      } else {
+        enum init = "new " ~ ClassName.stringof;
+      }
+
+      static if(properties.list.length > 0 && __traits(hasMember, ClassName, "__ctor")) {
+        alias t = __traits(getMember, ClassName, "__ctor");
+
+        mixin(genHelperPropertiesValues!("ctor", Parameters!t));
+        enum ctorParams = `(` ~ genHelperParams!("ctor", Parameters!t) ~ `)`;
+      } else {
+        enum ctorParams = "()";
+      }
+
+      mixin("return " ~ init ~ ctorParams ~ ";");
     }
 
     ///

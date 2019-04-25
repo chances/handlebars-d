@@ -2,6 +2,19 @@ module handlebars.components.scope_;
 
 import handlebars.components.base;
 
+
+/// Component that will handle the if blocks
+class ScopeComponentCt(Token[] tokens, Properties properties) : HbsComponent!"" {
+
+  ///
+  this(string propertyName, string localName, string index, string indexName) {
+  }
+
+  string render(T, Components...)(T controller) {
+    return "";
+  }
+}
+
 /// Component that will handle the if blocks
 class ScopeComponent : HbsComponent!"" {
 

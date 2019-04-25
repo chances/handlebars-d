@@ -74,6 +74,25 @@ static string genHelperValues(string prefix, List...)() {
 }
 
 ///
+static string genHelperPropertiesValues(string prefix, List...)() {
+  string result;
+  size_t index;
+
+  static foreach (T; List) {{
+    string property = `properties.list[` ~ index.to!string ~ `]`;
+    string var = prefix ~ "_" ~ index.to!string;
+
+    result ~= T.stringof ~ " " ~ var ~ ";";
+    result ~= `if(` ~ property ~ `.isEvaluated) {`;
+    result ~= var ~ ` = `~ property ~`.get!(` ~ T.stringof ~ ");";
+    result ~= `} else { ` ~ var ~ ` = evaluate!(` ~ T.stringof ~ `)(controller, ` ~ property ~ `.value); }`;
+    index++;
+  }}
+
+  return result;
+}
+
+///
 static string genHelperParams(string prefix, List...)() {
   string result;
   string glue;

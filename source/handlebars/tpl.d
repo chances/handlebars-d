@@ -87,10 +87,7 @@ class RenderContext(T, Components...) : Lifecycle {
     else static if(token.type == Token.Type.openBlock) {
       enforce(components.exists(token.value), "There is no component defined as `" ~ token.value ~ "`.");
 
-      return components.get(controller,
-        token,
-        tokens[1..$-1],
-        this);
+      return components.get!tokens(controller, this);
     } else {
       return "";
     }
@@ -197,12 +194,35 @@ string render(string tplValue, T, Components...)(T controller) {
   return result;
 }
 
+
+/// Render a template at ctfe
+string render(Token[] tokens, T, Components...)(T controller) {
+  scope context = new RenderContext!(T, NoDuplicates!Components)(controller);
+
+  string result;
+  enum groups = tokens.tokenLevelRange.array;
+
+  static foreach(group; groups) {
+    result ~= context.render!(group);
+  }
+
+  return result;
+}
+
 /// Rendering an empty string
 unittest {
   enum tpl = "";
   struct Controller {}
 
   render(tpl, Controller()).should.equal("");
+}
+
+/// Rendering an empty string at ctfe
+unittest {
+  enum tpl = "";
+  struct Controller {}
+
+  render!(tpl)(Controller()).should.equal("");
 }
 
 /// Rendering a string value
@@ -216,17 +236,15 @@ unittest {
   render(tpl, Controller("2")).should.equal("2");
 }
 
-/// Rendering a string property
+/// Rendering a string value at ctfe
 unittest {
   enum tpl = "{{value}}";
 
   struct Controller {
-    string value() {
-      return "3";
-    }
+    string value;
   }
 
-  render(tpl, Controller()).should.equal("3");
+  render!(tpl)(Controller("2")).should.equal("2");
 }
 
 /// Rendering a string property
@@ -240,6 +258,46 @@ unittest {
   }
 
   render(tpl, Controller()).should.equal("3");
+}
+
+/// Rendering a string property at ctfe
+unittest {
+  enum tpl = "{{value}}";
+
+  struct Controller {
+    string value() {
+      return "3";
+    }
+  }
+
+  render!(tpl)(Controller()).should.equal("3");
+}
+
+/// Rendering a string property
+unittest {
+  enum tpl = "{{value}}";
+
+  struct Controller {
+    string value() {
+      return "3";
+    }
+  }
+
+  render(tpl, Controller()).should.equal("3");
+}
+
+
+/// Rendering a string property at ctfe
+unittest {
+  enum tpl = "{{value}}";
+
+  struct Controller {
+    string value() {
+      return "3";
+    }
+  }
+
+  render!(tpl)(Controller()).should.equal("3");
 }
 
 /// Rendering a numeric property
@@ -253,6 +311,20 @@ unittest {
   }
 
   render(tpl, Controller()).should.equal("3");
+}
+
+
+/// Rendering a numeric property at ctfe
+unittest {
+  enum tpl = "{{value}}";
+
+  struct Controller {
+    int value() {
+      return 3;
+    }
+  }
+
+  render!(tpl)(Controller()).should.equal("3");
 }
 
 /// Rendering a numeric struct subproperty
@@ -270,6 +342,23 @@ unittest {
   }
 
   render(tpl, Controller()).should.equal("3");
+}
+
+/// Rendering a numeric struct subproperty at ctfe
+unittest {
+  enum tpl = "{{child.value}}";
+
+  struct Child {
+    int value = 3;
+  }
+
+  struct Controller {
+    Child child() {
+      return Child();
+    }
+  }
+
+  render!(tpl)(Controller()).should.equal("3");
 }
 
 /// Rendering a numeric class subproperty
@@ -627,6 +716,45 @@ unittest {
   render!(tpl)(Controller()).should.equal(" 01  12  23  34 ");
 }
 
+/// Rendering an nested indexed each block with ctfe parsing
+unittest {
+  struct Child {
+    int[] numbers() {
+      return [1,2,3,4];
+    }
+  }
+
+  struct Controller {
+    Child[] list() {
+      return [Child(), Child()];
+    }
+  }
+
+  enum tpl = `{{#each list as |child index|}} {{index}}.[{{#each child.numbers as |number index|}}{{index}}.{{number}} {{/each}}] {{/each}}`;
+  render!(tpl)(Controller()).should.equal(" 0.[0.1 1.2 2.3 3.4 ]  1.[0.1 1.2 2.3 3.4 ] ");
+}
+
+/// Rendering parent values in an nested indexed each block with ctfe parsing
+unittest {
+  struct Child {
+    int[] numbers() {
+      return [1,2,3,4];
+    }
+  }
+
+  struct Controller {
+    string parentValue1 = "test1";
+    string parentValue2 = "test2";
+
+    Child[] list() {
+      return [Child(), Child()];
+    }
+  }
+
+  enum tpl = `{{#each list as |child parent_index|}} {{parentValue1}} [{{#each child.numbers as |number index|}}{{parentValue2}} {{parent_index}}.{{index}}.{{number}} {{/each}}] {{/each}}`;
+  render!(tpl)(Controller()).should.equal(" test1 [test2 0.0.1 test2 0.1.2 test2 0.2.3 test2 0.3.4 ]  test1 [test2 1.0.1 test2 1.1.2 test2 1.2.3 test2 1.3.4 ] ");
+}
+
 /// Rendering scope component with helper
 unittest {
   struct Controller {
@@ -652,7 +780,18 @@ version(unittest) {
   }
 }
 
-/// Rendering component with external template
+/// Rendering component with external template at runtime
+unittest {
+  struct Controller {
+    int a = 1;
+    int b = 2;
+  }
+
+  enum tpl = `{{test-component a=a b=b}}`;
+  render!(Controller, TestComponent)(tpl, Controller()).should.equal("1:2\n");
+}
+
+/// Rendering component with external template at ctfe
 unittest {
   struct Controller {
     int a = 1;
@@ -682,7 +821,7 @@ version(unittest) {
   }
 }
 
-/// Rendering component with external template
+/// Rendering component with external template at ctfe
 unittest {
   struct Controller {
     int[] list = [10,20,30,40,50];
@@ -690,4 +829,14 @@ unittest {
 
   enum tpl = `{{test-each-component list=list}}`;
   render!(tpl, Controller, TestEachComponent, SeparatorComponent)(Controller()).should.equal("10,\n20,\n30,\n40,\n50,\n\n");
+}
+
+/// Rendering component with external template at runtime
+unittest {
+  struct Controller {
+    int[] list = [10,20,30,40,50];
+  }
+
+  enum tpl = `{{test-each-component list=list}}`;
+  render!(Controller, TestEachComponent, SeparatorComponent)(tpl, Controller()).should.equal("10,\n20,\n30,\n40,\n50,\n\n");
 }
