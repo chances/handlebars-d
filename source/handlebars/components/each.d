@@ -29,7 +29,7 @@ class EachComponentCt(Token[] tokens, Properties properties) : HbsComponent!"" {
       private T controller;
 
       static if(properties.localName != "") {
-        mixin(`__Type ` ~ properties.localName ~ `;`);
+        mixin(`Unqual!(__Type) ` ~ properties.localName ~ `;`);
       }
 
       static if(properties.indexName != "") {
