@@ -149,7 +149,7 @@ struct ComponentGroup(Components...) {
       }
 
       static if(properties.list.length > 0 && __traits(hasMember, ClassName, "__ctor")) {
-        alias t = __traits(getMember, ClassName, "__ctor");
+        alias t = ClassName.__ctor;
 
         mixin(genHelperPropertiesValues!("ctor", Parameters!t));
         enum ctorParams = `(` ~ genHelperParams!("ctor", Parameters!t) ~ `)`;
