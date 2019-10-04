@@ -54,7 +54,7 @@ struct Properties {
       static if(__traits(compiles, this.value.to!T)) {
         return this.value.to!T;
       } else {
-        throw new Exception("Can't get `"~value~"` as `"~T.stringof~"`");
+        throw new Exception("Can't get `" ~ value ~ "` as `" ~ T.stringof ~ "`");
       }
     }
 

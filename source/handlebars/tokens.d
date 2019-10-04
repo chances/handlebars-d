@@ -98,7 +98,11 @@ class TokenRange {
         token.value = tpl[index..index+pos];
       }
 
-      nextIndex = index+token.value.length;
+      nextIndex = index + token.value.length;
+
+      if( token.type == Token.Type.plain ) {
+        token.value = token.value.stripBeginToken.stripEndToken;
+      }
     }
   }
 
@@ -293,6 +297,18 @@ unittest {
   ]);
 }
 
+/// It should strip ws from plain tokens
+unittest {
+  enum tpl = "{{a}}\ntest\n{{a}}";
+  auto range = TokenRange(tpl);
+  auto levelRange = tokenLevelRange(range);
+
+  levelRange.array.should.equal([
+    [ Token(Token.Type.value, "a", Properties("")) ],
+    [ Token(Token.Type.plain, "test", Properties("")) ],
+    [ Token(Token.Type.value, "a", Properties("")) ]]);
+}
+
 ///
 T evaluate(T,U)(U value, string fieldName) {
   static immutable ignoredMembers = [ __traits(allMembers, Object), "render", "this" ];
@@ -381,4 +397,100 @@ string[] splitMemberAccess(string memberName) {
   }
 
   return result;
+}
+
+///
+string stripBeginToken(string value) {
+  long begin;
+  auto pos = value.indexOf("\n");
+  auto charPos = getFirstCharPos(value);
+
+  if(charPos != -1 && pos > charPos) {
+    return value;
+  }
+
+  if(pos >= 0) {
+    begin = pos + 1;
+  }
+
+  return value[begin..$];
+}
+
+/// Remove the white spaces until the first new line
+unittest {
+  "  \n\n\n".stripBeginToken.should.equal("\n\n");
+  "  \r\n\r\n\r\n".stripBeginToken.should.equal("\r\n\r\n");
+  " a \n\n\n".stripBeginToken.should.equal(" a \n\n\n");
+  " b \r\n\r\n\r\n".stripBeginToken.should.equal(" b \r\n\r\n\r\n");
+  "\ntest\n".stripBeginToken.should.equal("test\n");
+  "  ".stripBeginToken.should.equal("  ");
+}
+
+///
+long getFirstCharPos(const string value) {
+  foreach(long index, char ch; value) {
+    if(ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+/// Get the position of the first non ws char
+unittest {
+  "  \r\n\r\n\r\n".getFirstCharPos.should.equal(-1);
+  "  \r\n\t".getFirstCharPos.should.equal(-1);
+  " b \r\n\r\n\r\n".getFirstCharPos.should.equal(1);
+}
+
+
+///
+string stripEndToken(string value) {
+  long end = value.length;
+  auto pos = value.lastIndexOf("\n");
+  if(value.lastIndexOf("\r") == pos - 1) {
+    pos--;
+  }
+
+  auto charPos = getLastCharPos(value);
+
+  if(charPos != -1 && pos < charPos) {
+    return value;
+  }
+
+  if(pos >= 0) {
+    end = pos;
+  }
+
+  return value[0..end];
+}
+
+/// Remove the white spaces after the last new line
+unittest {
+  "  \n\n\n  ".stripEndToken.should.equal("  \n\n");
+  "  \r\n\r\n\r\n  ".stripEndToken.should.equal("  \r\n\r\n");
+  " a \n\n\n a ".stripEndToken.should.equal(" a \n\n\n a ");
+  " b \r\n\r\n\r\n a ".stripEndToken.should.equal(" b \r\n\r\n\r\n a ");
+  "\ntest\n".stripEndToken.should.equal("\ntest");
+  "  ".stripEndToken.should.equal("  ");
+}
+
+
+///
+long getLastCharPos(const string value) {
+  foreach_reverse(long index, char ch; value) {
+    if(ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+/// Get the position of the last non ws char
+unittest {
+  "  \r\n\r\n\r\n".getLastCharPos.should.equal(-1);
+  "  \r\n\t".getLastCharPos.should.equal(-1);
+  " a \r\n\r\n\r\n b ".getLastCharPos.should.equal(10);
 }
