@@ -701,6 +701,18 @@ unittest {
   render(tpl, Controller()).should.equal("text");
 }
 
+/// Rendering if block with new lines and stop at the else block if the value is evaluated to true
+unittest {
+  struct Controller {
+    bool value = true;
+  }
+
+  enum tpl = "  {{#if true}}\n" ~
+  "text\n" ~
+  "{{else value}}\n" ~ "other{{/if}}\n";
+  render(tpl, Controller()).should.equal("  text");
+}
+
 /// Rendering at ctfe an if block and stop at the else block if the value is evaluated to true
 unittest {
   struct Controller {
@@ -876,7 +888,7 @@ unittest {
   }
 
   enum tpl = `{{test-component a=a b=b}}`;
-  render!(Controller, TestComponent)(tpl, Controller()).should.equal("1:2\n");
+  render!(Controller, TestComponent)(tpl, Controller()).should.equal("1:2");
 }
 
 /// Rendering component with external template at ctfe
@@ -887,7 +899,7 @@ unittest {
   }
 
   enum tpl = `{{test-component a=a b=b}}`;
-  render!(tpl, Controller, TestComponent)(Controller()).should.equal("1:2\n");
+  render!(tpl, Controller, TestComponent)(Controller()).should.equal("1:2");
 }
 
 
@@ -916,7 +928,7 @@ unittest {
   }
 
   enum tpl = `{{test-each-component list=list}}`;
-  render!(tpl, Controller, TestEachComponent, SeparatorComponent)(Controller()).should.equal("10,\n20,\n30,\n40,\n50,\n\n");
+  render!(tpl, Controller, TestEachComponent, SeparatorComponent)(Controller()).should.equal("10,20,30,40,50,");
 }
 
 /// Rendering component with external template at runtime
@@ -926,5 +938,5 @@ unittest {
   }
 
   enum tpl = `{{test-each-component list=list}}`;
-  render!(Controller, TestEachComponent, SeparatorComponent)(tpl, Controller()).should.equal("10,\n20,\n30,\n40,\n50,\n\n");
+  render!(Controller, TestEachComponent, SeparatorComponent)(tpl, Controller()).should.equal("10,20,30,40,50,");
 }
