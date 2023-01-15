@@ -36,7 +36,7 @@ struct ComponentGroup(Components...) {
     }
 
     ///
-    string get(T)(T controller, Token token, Token[] content, Lifecycle lifecycle) {
+    string get(T)(T controller, Token token, Token[] content, HandlebarsLifecycle lifecycle) {
       auto instance = getInstance(controller, token);
       instance.lifecycle = lifecycle;
       instance.content = content;
@@ -62,7 +62,7 @@ struct ComponentGroup(Components...) {
     }
 
     ///
-    string get(Token[] tokens, T)(T controller, Lifecycle lifecycle) {
+    string get(Token[] tokens, T)(T controller, HandlebarsLifecycle lifecycle) {
       enum token = tokens[0];
 
       static if(tokens.length >= 1) {

@@ -25,7 +25,7 @@ class RenderException : Exception {
 }
 
 ///
-class RenderContext(T, Components...) : Lifecycle {
+class RenderContext(T, Components...) : HandlebarsLifecycle {
   private {
     T controller;
     ComponentGroup!(NoDuplicates!Components) components;

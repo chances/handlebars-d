@@ -18,10 +18,10 @@ alias OnEvaluateLong = long delegate(string);
 ///
 interface IHbsComponent {
   void content(Token[]);
-  void lifecycle(Lifecycle);
+  void lifecycle(HandlebarsLifecycle);
 
   Token[] content();
-  Lifecycle lifecycle();
+  HandlebarsLifecycle lifecycle();
 
   string yield();
 }
@@ -31,14 +31,14 @@ abstract class HbsComponent(string tpl = "{{yield}}") : IHbsComponent {
   ///
   private {
     Token[] _content;
-    Lifecycle _lifecycle;
+    HandlebarsLifecycle _lifecycle;
   }
 
   void content(Token[] value) {
     this._content = value;
   }
 
-  void lifecycle(Lifecycle value) {
+  void lifecycle(HandlebarsLifecycle value) {
     this._lifecycle = value;
   }
 
@@ -46,7 +46,7 @@ abstract class HbsComponent(string tpl = "{{yield}}") : IHbsComponent {
     return this._content;
   }
 
-  Lifecycle lifecycle() {
+  HandlebarsLifecycle lifecycle() {
     return this._lifecycle;
   }
 

@@ -2,11 +2,10 @@
 	"authors": [
 		"gedaiu"
 	],
-	"copyright": "Copyright © 2019, gedaiu",
+	"copyright": "Copyright © 2019-2022, gedaiu",
 	"description": "A template library compatible with handlebars.js",
 	"license": "MIT",
 	"name": "handlebars",
-
 	"configurations": [
 		{
 			"name": "trial",

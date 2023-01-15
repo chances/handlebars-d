@@ -7,7 +7,7 @@ alias OnEvaluateBoolean = bool delegate(string);
 alias OnEvaluateLong = long delegate(string);
 
 ///
-interface Lifecycle {
+interface HandlebarsLifecycle {
   ///
   string yield(Token[] tokens);
 
@@ -18,7 +18,7 @@ interface Lifecycle {
   long evaluateLong(string value);
 }
 
-class MockLifecycle: Lifecycle {
+class MockLifecycle: HandlebarsLifecycle {
   OnYield onYield;
   OnEvaluateBoolean onEvaluateBoolean;
   OnEvaluateLong onEvaluateLong;
