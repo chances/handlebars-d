@@ -14,7 +14,7 @@ import handlebars.helper;
 import handlebars.components.all;
 
 version(unittest) {
-  import fluent.asserts;
+  import fluent.asserts : should;
 }
 
 ///
