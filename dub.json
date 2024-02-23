@@ -1,8 +1,9 @@
 {
 	"authors": [
-		"gedaiu"
+		"gedaiu",
+		"Chance Snow <git@chancesnow.me>"
 	],
-	"copyright": "Copyright © 2019-2022, gedaiu",
+	"copyright": "Copyright © 2019-2022, gedaiu, Copyright © 2024, Chance Snow",
 	"description": "A template library compatible with handlebars.js",
 	"license": "MIT",
 	"name": "handlebars",

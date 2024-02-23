@@ -902,6 +902,25 @@ unittest {
   render!(tpl, Controller, TestComponent)(Controller()).should.equal("1:2");
 }
 
+version(unittest) {
+  enum tplDdocHtmlComponent = import("test-ddoc-html.hbs");
+  class TestDdocHtmlComponent : HbsComponent!(tplDdocHtmlComponent) {
+    ///
+    enum ComponentName = "test-ddoc-html";
+
+    string title = "handlebars.tpl";
+  }
+}
+
+/// Rendering component with external template at runtime
+unittest {
+  struct Controller {
+    string title = "handlebars.tpl";
+  }
+
+  enum tpl = tplDdocHtmlComponent;
+  render!Controller(tpl, Controller()).should.equal("1:2");
+}
 
 version(unittest) {
   enum tplEachComponent = import("test-each-component.hbs");
